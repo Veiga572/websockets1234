@@ -38,7 +38,13 @@ function perform_handshaking($received_header, $client_socket_resource, $host_na
 }
 
 function decode_websocket_message($data) {
+    if (strlen($data) < 2) {
+        return '';
+    }
     $length = ord($data[1]) & 127;
+    if (strlen($data) < 6 + $length) {
+        return '';
+    }
     $masks = substr($data, 2, 4);
     $data = substr($data, 6, $length);
     $text = '';
@@ -114,31 +120,41 @@ while (true) {
         $message = decode_websocket_message($data);
         if ($message) {
             $decoded = json_decode($message, true);
-            echo "Message received: " . print_r($decoded, true) . "\n";
+            if ($decoded && isset($decoded['type'])) {
+                echo "Message received: " . print_r($decoded, true) . "\n";
 
-            switch($decoded['type']) {
-                case 'join':
-                    $users[$index] = $decoded['nickname'];
-                    $rooms[$index] = $decoded['room'];
-                    $response = encode_websocket_message([
-                        'type' => 'join',
-                        'nickname' => $decoded['nickname'],
-                        'room' => $decoded['room']
-                    ]);
-                    break;
-                case 'message':
-                    $response = encode_websocket_message([
-                        'type' => 'message',
-                        'nickname' => $decoded['nickname'],
-                        'room' => $decoded['room'],
-                        'message' => $decoded['message']
-                    ]);
-                    break;
-            }
+                switch($decoded['type']) {
+                    case 'join':
+                        if (isset($decoded['nickname']) && isset($decoded['room'])) {
+                            $users[$index] = $decoded['nickname'];
+                            $rooms[$index] = $decoded['room'];
+                            $response = encode_websocket_message([
+                                'type' => 'join',
+                                'nickname' => $decoded['nickname'],
+                                'room' => $decoded['room']
+                            ]);
+                        }
+                        break;
+                    case 'message':
+                        if (isset($decoded['nickname']) && isset($decoded['room']) && isset($decoded['message'])) {
+                            $response = encode_websocket_message([
+                                'type' => 'message',
+                                'nickname' => $decoded['nickname'],
+                                'room' => $decoded['room'],
+                                'message' => $decoded['message']
+                            ]);
+                        }
+                        break;
+                }
 
-            foreach ($clients as $i => $client) {
-                if ($client != $server && $handshakes[$i] && $rooms[$i] === $decoded['room']) {
-                    socket_write($client, $response);
+                if (isset($response)) {
+                    foreach ($clients as $i => $client) {
+                        if ($client != $server && $handshakes[$i] && 
+                            isset($rooms[$i]) && isset($decoded['room']) && 
+                            $rooms[$i] === $decoded['room']) {
+                            socket_write($client, $response);
+                        }
+                    }
                 }
             }
         }
