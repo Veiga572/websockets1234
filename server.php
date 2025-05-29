@@ -11,6 +11,7 @@ socket_listen($server);
 
 $clients = [$server];
 $handshakes = [];
+$users = [];
 
 echo "WebSocket Server running on ws://$host:$port\n";
 
@@ -46,9 +47,10 @@ function decode_websocket_message($data) {
     return $text;
 }
 
-function encode_websocket_message($text) {
+function encode_websocket_message($message) {
+    $json = json_encode($message);
     $b1 = 0x80 | (0x1 & 0x0f);
-    $length = strlen($text);
+    $length = strlen($json);
     
     if($length <= 125)
         $header = pack('CC', $b1, $length);
@@ -57,7 +59,7 @@ function encode_websocket_message($text) {
     else
         $header = pack('CCNN', $b1, 127, $length);
 
-    return $header.$text;
+    return $header.$json;
 }
 
 while (true) {
@@ -68,6 +70,7 @@ while (true) {
         $new_client = socket_accept($server);
         $clients[] = $new_client;
         $handshakes[] = false;
+        $users[] = '';
         socket_getpeername($new_client, $ip);
         echo "New connection from $ip\n";
         unset($read[array_search($server, $read)]);
@@ -78,9 +81,22 @@ while (true) {
         $data = @socket_read($changed_socket, 1024, PHP_BINARY_READ);
 
         if ($data === false) {
+            $nickname = $users[$index];
+            if ($nickname) {
+                $leave_msg = encode_websocket_message([
+                    'type' => 'leave',
+                    'nickname' => $nickname
+                ]);
+                foreach ($clients as $i => $client) {
+                    if ($client != $server && $handshakes[$i]) {
+                        socket_write($client, $leave_msg);
+                    }
+                }
+            }
             socket_close($changed_socket);
             unset($clients[$index]);
             unset($handshakes[$index]);
+            unset($users[$index]);
             continue;
         }
 
@@ -92,10 +108,28 @@ while (true) {
 
         $message = decode_websocket_message($data);
         if ($message) {
-            echo "Message received: $message\n";
-            $response = encode_websocket_message($message);
+            $decoded = json_decode($message, true);
+            echo "Message received: " . print_r($decoded, true) . "\n";
+
+            switch($decoded['type']) {
+                case 'join':
+                    $users[$index] = $decoded['nickname'];
+                    $response = encode_websocket_message([
+                        'type' => 'join',
+                        'nickname' => $decoded['nickname']
+                    ]);
+                    break;
+                case 'message':
+                    $response = encode_websocket_message([
+                        'type' => 'message',
+                        'nickname' => $decoded['nickname'],
+                        'message' => $decoded['message']
+                    ]);
+                    break;
+            }
+
             foreach ($clients as $i => $client) {
-                if ($client != $server && $client != $changed_socket && $handshakes[$i]) {
+                if ($client != $server && $handshakes[$i]) {
                     socket_write($client, $response);
                 }
             }
