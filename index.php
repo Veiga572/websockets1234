@@ -69,7 +69,7 @@ if (!isset($_SESSION['nickname'])) {
                     <small class="text-muted">Connected as: <?php echo $_SESSION['nickname']; ?></small>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <form method="post" class="m-0">
+                    <form method="post" class="m-0" id="roomForm">
                         <select name="room" class="form-select form-select-sm" onchange="switchRoom(this.value)">
                             <option value="chat-room" <?php echo $_SESSION['room'] === 'chat-room' ? 'selected' : ''; ?>>Chat Room</option>
                             <option value="game-room" <?php echo $_SESSION['room'] === 'game-room' ? 'selected' : ''; ?>>Game Room</option>
@@ -145,6 +145,9 @@ if (!isset($_SESSION['nickname'])) {
                 currentRoom = newRoom;
                 messagesDiv.innerHTML = ''; // Clear messages
 
+                // Update the room header
+                document.querySelector('.card-title.mb-0').textContent = 'Chat Room: ' + newRoom;
+
                 // Send join message for new room
                 ws.send(JSON.stringify({
                     type: 'join',
@@ -153,7 +156,7 @@ if (!isset($_SESSION['nickname'])) {
                 }));
 
                 // Submit the form to update session
-                this.form.submit();
+                document.getElementById('roomForm').submit();
             }
         }
 
