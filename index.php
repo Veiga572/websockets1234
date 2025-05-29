@@ -1,8 +1,14 @@
 <?php
 session_start();
 
-if (isset($_POST['nickname'])) {
+if (isset($_POST['nickname']) && isset($_POST['room'])) {
     $_SESSION['nickname'] = htmlspecialchars($_POST['nickname']);
+    $_SESSION['room'] = htmlspecialchars($_POST['room']);
+}
+
+// Handle room change
+if (isset($_POST['room']) && isset($_SESSION['nickname'])) {
+    $_SESSION['room'] = htmlspecialchars($_POST['room']);
 }
 
 if (!isset($_SESSION['nickname'])) {
@@ -26,6 +32,13 @@ if (!isset($_SESSION['nickname'])) {
                         <div class="mb-3">
                             <label class="form-label">Choose your nickname</label>
                             <input type="text" name="nickname" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Select Room</label>
+                            <select name="room" class="form-select" required>
+                                <option value="chat-room">Chat Room</option>
+                                <option value="game-room">Game Room</option>
+                            </select>
                         </div>
                         <button type="submit" class="btn btn-primary">Join Chat</button>
                     </form>
@@ -51,9 +64,17 @@ if (!isset($_SESSION['nickname'])) {
     <div class="container py-4">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h3 class="card-title">Chat Room</h3>
+                <div>
+                    <h3 class="card-title mb-0">Chat Room: <?php echo $_SESSION['room']; ?></h3>
+                    <small class="text-muted">Connected as: <?php echo $_SESSION['nickname']; ?></small>
+                </div>
                 <div class="d-flex align-items-center gap-2">
-                    <span class="text-muted">Welcome, <?php echo $_SESSION['nickname']; ?></span>
+                    <form method="post" class="m-0">
+                        <select name="room" class="form-select form-select-sm" onchange="switchRoom(this.value)">
+                            <option value="chat-room" <?php echo $_SESSION['room'] === 'chat-room' ? 'selected' : ''; ?>>Chat Room</option>
+                            <option value="game-room" <?php echo $_SESSION['room'] === 'game-room' ? 'selected' : ''; ?>>Game Room</option>
+                        </select>
+                    </form>
                     <form method="post" action="logout.php" class="m-0">
                         <button type="submit" class="btn btn-sm btn-outline-danger">Logout</button>
                     </form>
@@ -71,38 +92,70 @@ if (!isset($_SESSION['nickname'])) {
 
     <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
     <script>
-        const nickname = '<?php echo $_SESSION['nickname']; ?>';
-        const ws = new WebSocket('ws://localhost:12345');
+        let nickname = '<?php echo $_SESSION['nickname']; ?>';
+        let currentRoom = '<?php echo $_SESSION['room']; ?>';
+        let ws = new WebSocket('ws://localhost:12345');
         const messagesDiv = document.getElementById('messages');
         const messageInput = document.getElementById('messageInput');
 
-        ws.onopen = () => {
-            appendMessage('System', 'Connected to chat server');
-            // Send user joined message
-            ws.send(JSON.stringify({
-                type: 'join',
-                nickname: nickname
-            }));
-        };
+        function connectWebSocket() {
+            ws = new WebSocket('ws://localhost:12345');
 
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            switch(data.type) {
-                case 'join':
-                    appendMessage('System', `${data.nickname} joined the chat`);
-                    break;
-                case 'leave':
-                    appendMessage('System', `${data.nickname} left the chat`);
-                    break;
-                case 'message':
-                    appendMessage(data.nickname, data.message);
-                    break;
+            ws.onopen = () => {
+                appendMessage('System', 'Connected to chat server');
+                ws.send(JSON.stringify({
+                    type: 'join',
+                    nickname: nickname,
+                    room: currentRoom
+                }));
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.room === currentRoom) {
+                    switch(data.type) {
+                        case 'join':
+                            appendMessage('System', `${data.nickname} joined the room`);
+                            break;
+                        case 'leave':
+                            appendMessage('System', `${data.nickname} left the room`);
+                            break;
+                        case 'message':
+                            appendMessage(data.nickname, data.message);
+                            break;
+                    }
+                }
+            };
+
+            ws.onclose = () => {
+                appendMessage('System', 'Disconnected from chat server');
+            };
+        }
+
+        function switchRoom(newRoom) {
+            if (newRoom !== currentRoom) {
+                // Send leave message for current room
+                ws.send(JSON.stringify({
+                    type: 'leave',
+                    nickname: nickname,
+                    room: currentRoom
+                }));
+
+                // Update room
+                currentRoom = newRoom;
+                messagesDiv.innerHTML = ''; // Clear messages
+
+                // Send join message for new room
+                ws.send(JSON.stringify({
+                    type: 'join',
+                    nickname: nickname,
+                    room: newRoom
+                }));
+
+                // Submit the form to update session
+                this.form.submit();
             }
-        };
-
-        ws.onclose = () => {
-            appendMessage('System', 'Disconnected from chat server');
-        };
+        }
 
         function sendMessage() {
             const message = messageInput.value.trim();
@@ -110,6 +163,7 @@ if (!isset($_SESSION['nickname'])) {
                 ws.send(JSON.stringify({
                     type: 'message',
                     nickname: nickname,
+                    room: currentRoom,
                     message: message
                 }));
                 messageInput.value = '';
@@ -129,6 +183,9 @@ if (!isset($_SESSION['nickname'])) {
                 sendMessage();
             }
         });
+
+        // Initial connection
+        connectWebSocket();
     </script>
 </body>
 </html>

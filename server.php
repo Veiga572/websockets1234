@@ -12,6 +12,7 @@ socket_listen($server);
 $clients = [$server];
 $handshakes = [];
 $users = [];
+$rooms = [];
 
 echo "WebSocket Server running on ws://$host:$port\n";
 
@@ -71,6 +72,7 @@ while (true) {
         $clients[] = $new_client;
         $handshakes[] = false;
         $users[] = '';
+        $rooms[] = '';
         socket_getpeername($new_client, $ip);
         echo "New connection from $ip\n";
         unset($read[array_search($server, $read)]);
@@ -82,13 +84,15 @@ while (true) {
 
         if ($data === false) {
             $nickname = $users[$index];
-            if ($nickname) {
+            $room = $rooms[$index];
+            if ($nickname && $room) {
                 $leave_msg = encode_websocket_message([
                     'type' => 'leave',
-                    'nickname' => $nickname
+                    'nickname' => $nickname,
+                    'room' => $room
                 ]);
                 foreach ($clients as $i => $client) {
-                    if ($client != $server && $handshakes[$i]) {
+                    if ($client != $server && $handshakes[$i] && $rooms[$i] === $room) {
                         socket_write($client, $leave_msg);
                     }
                 }
@@ -97,6 +101,7 @@ while (true) {
             unset($clients[$index]);
             unset($handshakes[$index]);
             unset($users[$index]);
+            unset($rooms[$index]);
             continue;
         }
 
@@ -114,22 +119,25 @@ while (true) {
             switch($decoded['type']) {
                 case 'join':
                     $users[$index] = $decoded['nickname'];
+                    $rooms[$index] = $decoded['room'];
                     $response = encode_websocket_message([
                         'type' => 'join',
-                        'nickname' => $decoded['nickname']
+                        'nickname' => $decoded['nickname'],
+                        'room' => $decoded['room']
                     ]);
                     break;
                 case 'message':
                     $response = encode_websocket_message([
                         'type' => 'message',
                         'nickname' => $decoded['nickname'],
+                        'room' => $decoded['room'],
                         'message' => $decoded['message']
                     ]);
                     break;
             }
 
             foreach ($clients as $i => $client) {
-                if ($client != $server && $handshakes[$i]) {
+                if ($client != $server && $handshakes[$i] && $rooms[$i] === $decoded['room']) {
                     socket_write($client, $response);
                 }
             }
