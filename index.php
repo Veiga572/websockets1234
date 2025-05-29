@@ -1,6 +1,10 @@
 <?php
 session_start();
 
+// Load rooms from JSON file
+$roomsData = json_decode(file_get_contents(__DIR__ . '/rooms.json'), true);
+?>
+<?php
 if (isset($_POST['nickname']) && isset($_POST['room'])) {
     $_SESSION['nickname'] = htmlspecialchars($_POST['nickname']);
     $_SESSION['room'] = htmlspecialchars($_POST['room']);
@@ -35,9 +39,13 @@ if (!isset($_SESSION['nickname'])) {
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Select Room</label>
-                            <select name="room" class="form-select" required>
-                                <option value="chat-room">Chat Room</option>
-                                <option value="game-room">Game Room</option>
+                            <select name="room" id="room" class="form-select mb-3" required>
+                                <option value="">Select a room</option>
+                                <?php foreach ($roomsData['rooms'] as $room): ?>
+                                    <option value="<?php echo htmlspecialchars($room['id']); ?>">
+                                        <?php echo htmlspecialchars($room['name']); ?> - <?php echo htmlspecialchars($room['description']); ?>
+                                    </option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                         <button type="submit" class="btn btn-primary">Join Chat</button>

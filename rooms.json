@@ -1,0 +1,14 @@
+{
+    "rooms": [
+        {
+            "id": "chat-room",
+            "name": "Chat Room",
+            "description": "General chat room for everyone"
+        },
+        {
+            "id": "game-room",
+            "name": "Game Room",
+            "description": "Room for game discussions"
+        }
+    ]
+}

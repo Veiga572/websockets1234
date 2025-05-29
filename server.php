@@ -4,6 +4,10 @@ set_time_limit(0);
 $host = "127.0.0.1";
 $port = 12345;
 
+// Load rooms from JSON file
+$roomsData = json_decode(file_get_contents(__DIR__ . '/rooms.json'), true);
+$availableRooms = array_column($roomsData['rooms'], 'id');
+
 $server = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 socket_set_option($server, SOL_SOCKET, SO_REUSEADDR, 1);
 socket_bind($server, $host, $port);
@@ -126,13 +130,16 @@ while (true) {
                 switch($decoded['type']) {
                     case 'join':
                         if (isset($decoded['nickname']) && isset($decoded['room'])) {
-                            $users[$index] = $decoded['nickname'];
-                            $rooms[$index] = $decoded['room'];
-                            $response = encode_websocket_message([
-                                'type' => 'join',
-                                'nickname' => $decoded['nickname'],
-                                'room' => $decoded['room']
-                            ]);
+                            // Validate that the room exists
+                            if (in_array($decoded['room'], $availableRooms)) {
+                                $users[$index] = $decoded['nickname'];
+                                $rooms[$index] = $decoded['room'];
+                                $response = encode_websocket_message([
+                                    'type' => 'join',
+                                    'nickname' => $decoded['nickname'],
+                                    'room' => $decoded['room']
+                                ]);
+                            }
                         }
                         break;
                     case 'message':
