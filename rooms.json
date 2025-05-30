@@ -9,6 +9,21 @@
             "id": "game-room",
             "name": "Game Room",
             "description": "Room for game discussions"
+        },
+        {
+            "id": "123123",
+            "name": "123123",
+            "description": "123123"
+        },
+        {
+            "id": "12312365",
+            "name": "12312365",
+            "description": "nhafeiodfbaiodawd"
+        },
+        {
+            "id": "teste3",
+            "name": "teste3",
+            "description": "123123123"
         }
     ]
 }
