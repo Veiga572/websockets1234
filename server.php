@@ -73,6 +73,16 @@ function encode_websocket_message($message) {
     return $header.$json;
 }
 
+function write_chat_log($room_id, $nickname, $message) {
+    $timestamp = date('YmdH'); // year, month, day, hour
+    $filename = __DIR__ . '/logs/' . $room_id . '_' . $timestamp . '.log';
+    if (!file_exists(__DIR__ . '/logs')) {
+        mkdir(__DIR__ . '/logs', 0777, true);
+    }
+    $log_entry = '[' . date('Y-m-d H:i:s') . "] $nickname: $message\n";
+    file_put_contents($filename, $log_entry, FILE_APPEND);
+}
+
 while (true) {
     $read = $clients;
     socket_select($read, $write, $except, 0);
@@ -150,6 +160,8 @@ while (true) {
                                 'room' => $decoded['room'],
                                 'message' => $decoded['message']
                             ]);
+                            // Log the message
+                            write_chat_log($decoded['room'], $decoded['nickname'], $decoded['message']);
                         }
                         break;
                 }
