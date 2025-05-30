@@ -92,9 +92,9 @@ if (isset($_POST['login_username']) && isset($_POST['login_password'])) {
 }
 
 // Only allow joining chat if logged in
-if (isset($_POST['nickname']) && isset($_POST['room']) && isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
-    $_SESSION['nickname'] = htmlspecialchars($_POST['nickname']);
+if (isset($_POST['room']) && isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
     $_SESSION['room'] = htmlspecialchars($_POST['room']);
+    $_SESSION['nickname'] = $_SESSION['username']; // Use username as nickname
 }
 
 // Handle room change
@@ -134,10 +134,6 @@ if (!isset($_SESSION['nickname'])) {
                         <div class="mb-3">
                             <label class="form-label">Password</label>
                             <input type="password" name="login_password" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Nickname</label>
-                            <input type="text" name="nickname" class="form-control" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Select Room</label>
