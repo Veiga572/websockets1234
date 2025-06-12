@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($error)) {
         $usersData['users'][] = [
             'username' => $username,
-            'password' => $password // For production, hash the password!
+            'password' => $password
         ];
         file_put_contents($usersFile, json_encode($usersData, JSON_PRETTY_PRINT));
         $success = 'User created successfully!';

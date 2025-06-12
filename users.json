@@ -7,6 +7,10 @@
         {
             "username": "teste1",
             "password": "teste1"
+        },
+        {
+            "username": "teste2",
+            "password": "teste2"
         }
     ]
 }
